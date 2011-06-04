@@ -1,0 +1,31 @@
+# RAKEFIE for HGI.
+
+require "rake/clean"
+
+CC = "ghc"
+
+task :default => "run"
+
+CLEAN.include("*.o", "*.hi", "*.bmp", ".hpc", "*.tix")
+CLOBBER.include("../bin/*", "../profile/*.prof", "../profile/HPC/*.html")
+
+task "run" do
+  sh "#{CC} --make Main.hs -o ../bin/Main"
+  sh "../bin/Main"
+end
+
+task "test" do
+  sh "runhaskell TestMain.hs"
+end
+
+task "profile" do
+  sh "#{CC} -O2 Main.hs -prof -caf-all -auto-all -rtsopts -o ../bin/ProfileMain"
+  sh "cd ../profile && ../bin/ProfileMain +RTS -p"
+end
+
+task "hpc" do
+  sh "#{CC} -fhpc TestMain.hs -o ../bin/HPCMain"
+  sh "../bin/HPCMain"
+  sh "hpc report HPCMain --exclude=Main --exclude=QC"
+  sh "hpc markup HPCMain --exclude=Main --exclude=QC --destdir=../profile/HPC/"
+end

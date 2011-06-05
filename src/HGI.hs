@@ -1,56 +1,13 @@
+-- author: tm8st (tm8st@hotmail.co.jp)
 -- Global illumination renderer implement in haskell.
--- Reference.
--- http://www.t-pot.com/program/92_RayTraceSphere/index.html
--- http://www.t-pot.com/program/94_RayTraceLighting/index.html
--- http://boegel.kejo.be/ELIS/Haskell/HRay/
 
 module HGI where
 
 import Debug.Trace (trace)
 import Data.List (foldl')
 import Data.Word (Word8)
-
--- | simple 3D vector.
-data Vector3 = Vector3 { vX :: Double
-                       , vY :: Double
-                       , vZ :: Double }
-               deriving(Eq, Show)
-
-instance Num Vector3 where
-  (+) l r = Vector3 (vX l + vX r) (vY l + vY r) (vZ l + vZ r)
-  (-) l r = Vector3 (vX l - vX r) (vY l - vY r) (vZ l - vZ r)
-  (*) l r = Vector3 (vX l * vX r) (vY l * vY r) (vZ l * vZ r)
-  negate v = Vector3 (- vX v) (- vY v) (- vZ v)
-  abs v = Vector3 (abs $ vX v) (abs $ vY v) (abs $ vZ v)
-  signum v = Vector3 (signum $ vX v) (signum $ vY v) (signum $ vZ v)
-  fromInteger l = Vector3 d d d
-   where d = fromInteger l 
-
-dot :: Vector3 -> Vector3 -> Double
-l `dot` r = vX l * vX r + vY l * vY r + vZ l * vZ r
-
-size :: Vector3 -> Double
-size v = sqrt $ dot v v
-
-cross :: Vector3 -> Vector3 -> Vector3
-l `cross` r = Vector3 (vY l * vZ r - vZ l * vY r)
-                      (vZ l * vX r - vX l * vZ r)
-                      (vX l * vY r - vY l * vX r)
-
-divByScalar :: Vector3 -> Double -> Vector3
-v `divByScalar` s = Vector3 (vX v / s) (vY v / s) (vZ v / s)
-
-mulByScalar :: Vector3 -> Double -> Vector3
-v `mulByScalar` s = Vector3 (vX v * s) (vY v * s) (vZ v * s)
-
-normal :: Vector3 -> Vector3
-normal v = v `divByScalar` size v
-
-safeNormal :: Vector3 -> Maybe Vector3
-safeNormal v = let len = size v
-               in if len /= 0.0
-               then Just $ v `divByScalar` len
-               else Nothing
+import Scene
+import Math
 
 -- | Color.
 data Color = Color { cR :: Double
@@ -62,21 +19,9 @@ fromVector3 :: Vector3 -> Color
 fromVector3 v = Color (vX v) (vY v) (vZ v)
 
 colorToWord8s :: Color -> [Word8]
-colorToWord8s c = (map doubleColorValueToWord8 [cR c, cG c, cB c]) ++ [255]
+colorToWord8s c = (map doubleColorValueToWord8 [cR c, cG c, cB c, 1.0])
   where
     doubleColorValueToWord8 v = max 0 $ min 255 (truncate (v * 255))
-
--- | Ray, use for intersection.
-data Ray = Ray { rayStart :: Vector3
-               , rayDirection :: Vector3
-               }
-           deriving(Eq, Show)
-
--- | Sphere, use for intersection.
-data Sphere = Sphere { sphereCenter :: Vector3
-                     , sphereRadius :: Double
-                     }
-              deriving(Eq, Show)
 
 -- | result of ray trace, 
 data TraceResult = TraceResult { trLocation :: Vector3  -- ^ hit location.
@@ -84,24 +29,6 @@ data TraceResult = TraceResult { trLocation :: Vector3  -- ^ hit location.
                                , trNormal  :: Vector3   -- ^ hit location's normal.
                                }
                    deriving(Eq, Show)
-
--- | Material, define object physical properties.
-data Material = Material { mtDiffuseColor :: Vector3
-                         , mtSpecularPower :: Double
-                         }
-                deriving(Eq, Show)
-
--- | Light.
-data Light = PointLight{ plRadius :: Double
-                       , plLocation :: Vector3
-                       , plColor :: Vector3 
-                       }
-             deriving (Eq, Show)
-
--- | Camera.
-data Camera = Camera { camLocation :: Vector3
-                     }
-              deriving(Eq, Show)
 
 -- | Screen Resolution.
 type Resolution = (Int, Int)

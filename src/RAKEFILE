@@ -7,10 +7,10 @@ CC = "ghc"
 task :default => "run"
 
 CLEAN.include("*.o", "*.hi", "*.bmp", ".hpc", "*.tix")
-CLOBBER.include("../bin/*", "../profile/*.prof", "../profile/HPC/*.html")
+CLOBBER.include("../bin/*") # , "../profile/*.prof", "../profile/HPC/*.html")
 
 task "run" do
-  sh "#{CC} --make Main.hs -o ../bin/Main"
+  sh "#{CC} --make -O4 Main.hs -o ../bin/Main"
   sh "../bin/Main"
 end
 
@@ -19,7 +19,7 @@ task "test" do
 end
 
 task "profile" do
-  sh "#{CC} -O2 Main.hs -prof -caf-all -auto-all -rtsopts -o ../bin/ProfileMain"
+  sh "#{CC} -O10 Main.hs -prof -caf-all -auto-all -rtsopts -o ../bin/ProfileMain"
   sh "cd ../profile && ../bin/ProfileMain +RTS -p"
 end
 

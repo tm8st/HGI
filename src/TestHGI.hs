@@ -1,6 +1,11 @@
+-- author: tm8st (tm8st@hotmail.co.jp)
+-- test module of HGI.
+
 module TestHGI where
 
 import HGI
+import Scene
+import Math
 
 import Data.Maybe
 import System.IO

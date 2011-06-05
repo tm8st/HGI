@@ -1,2 +1,7 @@
+* implement GI renderer in haskell.
 
-implement GI renderer in haskell.
+** Reference
+
+http://boegel.kejo.be/ELIS/Haskell/HRay/
+http://www.t-pot.com/program/92_RayTraceSphere/index.html
+http://www.t-pot.com/program/94_RayTraceLighting/index.html

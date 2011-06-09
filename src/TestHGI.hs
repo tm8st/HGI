@@ -32,3 +32,8 @@ prop_vector3_normal_size v = size n <= 1.0
 prop_vector3_divByScalar v@(Vector3 x y z) s = v `divByScalar` s == (Vector3 (x/s) (y/s) (z/s))
 prop_vector3_mulByScalar v@(Vector3 x y z) s = v `mulByScalar` s == (Vector3 (x*s) (y*s) (z*s))
 
+-- prop_render_image = renderImage (1, 1) Scene { objects = 
+--                                              , lights  = 
+--                                              , camera = Camera 
+--                                              , backgroundColor = Color 0 0 0}
+

@@ -24,12 +24,13 @@ data Camera = Camera { camLocation :: Vector3
               deriving(Eq, Show)
 
 -- | wrap math object and mesh.
-data Object = Object Sphere
+data Object = Object Sphere Material
             deriving(Eq, Show)
 
 -- | define situation for render.
 data Scene = Scene { objects :: [Object]
                    , lights :: [Light]
                    , camera :: Camera
+                   , backgroundColor :: Color
                    }
              deriving(Eq, Show)

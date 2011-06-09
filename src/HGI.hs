@@ -4,67 +4,64 @@
 module HGI where
 
 import Debug.Trace (trace)
-import Data.List (foldl')
+import Data.List (foldl', sortBy)
 import Data.Word (Word8)
 import Scene
 import Math
-
--- | Color.
-data Color = Color { cR :: Double
-                   , cG :: Double
-                   , cB :: Double }
-             deriving(Eq, Show)
-
-fromVector3 :: Vector3 -> Color
-fromVector3 v = Color (vX v) (vY v) (vZ v)
-
-colorToWord8s :: Color -> [Word8]
-colorToWord8s c = (map doubleColorValueToWord8 [cR c, cG c, cB c, 1.0])
-  where
-    doubleColorValueToWord8 v = max 0 $ min 255 (truncate (v * 255))
 
 -- | result of ray trace, 
 data TraceResult = TraceResult { trLocation :: Vector3  -- ^ hit location.
                                , trMaterial :: Material -- ^ hit object's material
                                , trNormal  :: Vector3   -- ^ hit location's normal.
+                               , trObject :: Object -- ^ hit object
                                }
                    deriving(Eq, Show)
 
 -- | Screen Resolution.
 type Resolution = (Int, Int)
-
-
--- | test scene setting values.
-testCamera = Camera { camLocation = (Vector3 0 0 (-20)) }
-testSphere = Sphere { sphereCenter =  (Vector3 0 0 5), sphereRadius = 18.0 }
-testMaterial = Material { mtDiffuseColor = (Vector3 0.7 0.8 1), mtSpecularPower = 8.0 }
-testPointLight = PointLight{ plRadius = 20, plLocation = (camLocation testCamera), plColor = Vector3 1 1 1 }
-testBGColor = Color 0 0 0.5
+type DoubleResolution = (Double, Double)
 
 -- | enumrate pixels and cast ray from camera to every pixels.
-renderImage :: Resolution -> Camera -> [Word8]
-renderImage (w, h) cam = concat [colorToWord8s $ tracePixelRays (x, y) | y <- [0..(h-1)], x <- [0..(w-1)]]
+renderImage :: Resolution -> Scene -> [Color]
+renderImage (w, h) scene@(Scene objs lgts cam _) = 
+  [tracePixelRays (x, y) | y <- [0..(h-1)], x <- [0..(w-1)]]
   where
+    fres = (fromIntegral w, fromIntegral h)
     tracePixelRays (x, y) = {-# SCC "tracePixelRays" #-}
-      let pixelPosInScene = screenPosToScenePos x y (w, h)
+      let pixelPosInScene = screenPosToScenePos x y fres
           camToPixelRay = getPosToPosRay (camLocation cam) pixelPosInScene
-      in case rayTrace camToPixelRay testSphere of
-        Just traceResult -> shade traceResult cam
-        otherwise        -> testBGColor
+          ret = findNearestRayHitLocation scene camToPixelRay
+      in case ret of
+        Just traceResult -> shade traceResult scene
+        otherwise        -> backgroundColor scene
 
 getPosToPosRay :: Vector3 -> Vector3 -> Ray
 getPosToPosRay from to = Ray{ rayStart = from
                             , rayDirection = normal (to - from)
                             }
 
-screenPosToScenePos :: Int -> Int -> Resolution -> Vector3
-screenPosToScenePos x y (w, h) = Vector3 ((fromIntegral x - fromIntegral w * 0.5) * 0.1)
-                                         ((fromIntegral h * 0.5 - fromIntegral y) * 0.1)
+screenPosToScenePos :: Int -> Int -> DoubleResolution -> Vector3
+screenPosToScenePos x y (w, h) = Vector3 ((fromIntegral x - w * 0.5) * 0.1)
+                                         ((h * 0.5 - fromIntegral y) * 0.1)
                                          0.0
 
--- | Ray vs Sphere.
-rayTrace :: Ray -> Sphere -> Maybe TraceResult
-rayTrace (Ray rs rd) (Sphere sc sr) =
+-- |
+findNearestRayHitLocation :: Scene -> Ray -> Maybe TraceResult
+findNearestRayHitLocation scene ray =
+  let m = foldl' collectResult [] $ objects scene
+  in if null m
+  then Nothing
+  else Just $ fst (head $ sortBy distanceComp m)
+  where
+    camLoc = camLocation $ camera scene
+    distanceComp (_, ld) (_, rd) = ld `compare` rd
+    collectResult acc obj = case rayTrace ray obj of
+                  Just tr -> [(tr, size $ (trLocation tr) - camLoc)] ++ acc
+                  Nothing -> acc
+  
+-- | Ray vs Object.
+rayTrace :: Ray -> Object -> Maybe TraceResult
+rayTrace (Ray rs rd) obj@(Object (Sphere sc sr) material) =
   let m = rs - sc
       b = m `dot` rd
       c = m `dot` m - sr*sr
@@ -75,24 +72,35 @@ rayTrace (Ray rs rd) (Sphere sc sr) =
      || (discr < 0.0)
      then Nothing
      else Just TraceResult { trLocation = location
-                           , trMaterial = testMaterial
+                           , trMaterial = material
                            , trNormal   = normal (location - sc)
+                           , trObject   = obj
                            }
 
 -- | calculate ray hit location's color.
-shade :: TraceResult -> Camera -> Color
-shade tr cam = resultColor
+shade :: TraceResult -> Scene -> Color
+shade tr scene =
+    foldl' collectDirectIllumination (Color 0 0 0) (lights scene)
   where
+    collectDirectIllumination acc light = acc + shadeByDirectIllumination tr light scene
+
+shadeByDirectIllumination :: TraceResult -> Light -> Scene -> Color
+shadeByDirectIllumination tr
+                          (PointLight { plLocation = plLocation, plRadius = plRadius, plColor = plColor })
+                          scene = resultColor
+  where
+    camLoc = camLocation $ camera scene
     trLoc = trLocation tr
     trN = trNormal tr
     trMat = trMaterial tr
-    lightDir = normal $ (plLocation testPointLight) - trLoc
+    lightDir = normal $ plLocation - trLoc
     diffuse = lambert trN lightDir
-    specular = halfVectorSpecular (normal ((camLocation cam) - trLoc)) trN lightDir (mtSpecularPower trMat)
-    diffuseColor = (plColor testPointLight) * (mtDiffuseColor trMat) `mulByScalar` diffuse
-    specularColor = (plColor testPointLight `mulByScalar` specular)
-    attenuation = pointLightAttenuation trLoc (plLocation testPointLight) (plRadius testPointLight)
+    specular = halfVectorSpecular (normal (camLoc - trLoc)) trN lightDir (mtSpecularPower trMat)
+    diffuseColor = plColor * (mtDiffuseColor trMat) `mulByScalar` diffuse
+    specularColor = plColor `mulByScalar` specular
+    attenuation = pointLightAttenuation trLoc plLocation plRadius
     resultColor = fromVector3 $ (diffuseColor + specularColor) `mulByScalar` attenuation
+
 
 -- | distance attenuation.
 pointLightAttenuation :: Vector3 -> Vector3 -> Double -> Double
@@ -106,5 +114,5 @@ halfLambert n l = (n `dot` l) * 0.5 + 0.5
 
 halfVectorSpecular :: Vector3 -> Vector3 -> Vector3 -> Double -> Double
 halfVectorSpecular e n l specularPower =
-  let h = normal ((negate e) + l)
-  in max 0.0 ((h `dot` n) ** specularPower)
+  let h = normal $ (negate e) + l
+  in max 0.0 $ (h `dot` n) ** specularPower

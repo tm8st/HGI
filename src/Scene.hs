@@ -4,6 +4,7 @@
 module Scene where
 
 import Math
+import Mesh
 
 -- | Material, define object physical properties.
 data Material = Material { mtDiffuseColor :: Vector3
@@ -24,7 +25,8 @@ data Camera = Camera { camLocation :: Vector3
               deriving(Eq, Show)
 
 -- | wrap math object and mesh.
-data Object = Object Sphere Material
+data Object = ObjectSphere Sphere Material
+            | ObjectMesh Mesh Material
             deriving(Eq, Show)
 
 -- | define situation for render.

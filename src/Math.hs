@@ -1,3 +1,6 @@
+-- author: tm8st (tm8st@hotmail.co.jp)
+-- math function and types.
+
 {-# LANGUAGE BangPatterns #-}
 
 module Math where
@@ -35,6 +38,8 @@ scalarTriple :: Vector3 -> Vector3 -> Vector3 -> Double
 scalarTriple u v w = (cross u v) `dot` w
 
 divByScalar :: Vector3 -> Double -> Vector3
+-- v `divByScalar` s = v `mulByScalar` invS
+--   where invS = 1.0 / s
 (Vector3 x y z) `divByScalar` s = Vector3 (x / s) (y / s) (z / s)
 
 
@@ -142,53 +147,13 @@ intersectionLineTriangle (Line p q) tri@(Triangle a b c) =
       pb = b - p
       pc = c - p
       u = scalarTriple pq pc pb
-  in if (u >= -epsilon && u <= epsilon)
-     then Nothing
-     else
-      let v = scalarTriple pq pa pc
-    in if (v >= -epsilon && v <= epsilon)
-    then Nothing
-    else
-      let w = scalarTriple pq pb pa
-      in if (w >= -epsilon && w <= epsilon)
-      then Nothing
-      else
-        let t = 1.0 / (u + v + w)
-        in Just (barycentricPosition tri (u*t, v*t, w*t), normal $ triangleNormal tri)
+      v = scalarTriple pq pa pc
+      w = scalarTriple pq pb pa
+  in if (abs u >= epsilon)
+     && (abs v >= epsilon)
+     && (abs w >= epsilon)
+     then let t = 1.0 / (u + v + w)
+          in Just (barycentricPosition tri (u*t, v*t, w*t), normal $ triangleNormal tri)
+     else Nothing
   where
-    epsilon = 0.0
-
--- intersectionLineTriangle :: Line -> Triangle -> Maybe Vector3
--- intersectionLineTriangle (Line ls le) (Triangle v0 v1 v2) = 
---   let e1 = v1 - v0
---       e2 = v2 - v0
---       ld = le - ls
---       h = ld `cross` e2
---       a = e1 `dot` h
---   in if (a > -epsilon && a < epsilon)
---   then Nothing
---   else
---     let f = 1 / a
---         s = ls - v0
---         u = f * (s `dot` h)
---     in if (u > -epsilon && u < epsilon)
---     then Nothing
---     else
---       let q = s `cross` e1
---           v = f * (ld `dot` q)
---       in if (v > -epsilon && v < epsilon)
---       then Nothing
---       else
---         let t = f * (e2 `dot` q)
---         in if (t > epsilon && t <= 1.0)
---         then Just (ls + ld `mulByScalar` t)
---         else Nothing
---   where
---     epsilon = 0.00001
-
--- intersectionRayPlane :: Ray -> Plane -> Maybe Vector3
--- intersectionRayPlane (Ray rs rd) (Plane pn pd) = 
---   let t = (rs `dot` pn + pd) / (rd `dot` pn)
---   in if (0.0 <= t) && (t <= 1.0)
---      then Just $ rs + rd  `mulByScalar` t
---      else Nothing
+    epsilon = 0.00001

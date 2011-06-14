@@ -8,6 +8,7 @@ import Data.List (foldl', sortBy)
 import Data.Word (Word8)
 import Scene
 import Math
+import Mesh
 
 -- | result of ray trace, 
 data TraceResult = TraceResult { trLocation :: Vector3  -- ^ hit location.
@@ -61,7 +62,9 @@ findNearestRayHitLocation scene ray =
   
 -- | Ray vs Object.
 rayTrace :: Ray -> Object -> Maybe TraceResult
-rayTrace (Ray rs rd) obj@(Object (Sphere sc sr) material) =
+
+-- | Ray vs Sphere
+rayTrace (Ray rs rd) obj@(ObjectSphere (Sphere sc sr) material) =
   let m = rs - sc
       b = m `dot` rd
       c = m `dot` m - sr*sr
@@ -76,6 +79,22 @@ rayTrace (Ray rs rd) obj@(Object (Sphere sc sr) material) =
                            , trNormal   = normal (location - sc)
                            , trObject   = obj
                            }
+-- | Ray vs Mesh
+rayTrace (Ray rs rd) obj@(ObjectMesh mesh material) =
+  let hits = foldl' findHitLocation [] (triangles mesh)
+  in if null hits
+     then Nothing
+     else Just TraceResult { trLocation = (fst $ head hits)
+                           , trMaterial = material
+                           , trNormal   = (snd $ head hits)
+                           , trObject   = obj
+                           }
+  where
+    testLine = Line (rs) (rs + rd `mulByScalar` 10000.0)
+    findHitLocation acc tri = 
+      case intersectionLineTriangle testLine tri of
+        Just (v, n) -> acc ++ [(v,n)]
+        Nothing -> acc
 
 -- | calculate ray hit location's color.
 shade :: TraceResult -> Scene -> Color
@@ -85,8 +104,7 @@ shade tr scene =
     collectDirectIllumination acc light = acc + shadeByDirectIllumination tr light scene
 
 shadeByDirectIllumination :: TraceResult -> Light -> Scene -> Color
-shadeByDirectIllumination tr
-                          (PointLight { plLocation = plLocation, plRadius = plRadius, plColor = plColor })
+shadeByDirectIllumination tr (PointLight { plLocation = plLocation, plRadius = plRadius, plColor = plColor })
                           scene = resultColor
   where
     camLoc = camLocation $ camera scene

@@ -1,0 +1,10 @@
+# 
+# gitignore config
+# 
+
+# サブディレクトリを含む 無視ファイル
+*.o
+*.hi
+*.prof
+TAGS
+*.bmp

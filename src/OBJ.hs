@@ -7,7 +7,7 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Combinator
 import Data.Either
 
--- | Vector3 in ObjFile.
+-- | Vector3 in OBJ module.
 data Vector3 = Vector3 Double Double Double
                deriving(Show, Eq)
 
@@ -34,27 +34,8 @@ data ObjFileInfo = ObjFileInfo { positions :: [ObjFileContent]
                                }
                    deriving(Eq, Show)
 
--- | .
-contentsToInfo :: [ObjFileContent] -> ObjFileInfo
-contentsToInfo objs = ObjFileInfo { positions = vs
-                                  , normals = vns
-                                  , faces = fs
-                                  }
-  where
-    (vs, vns, fs, cs) = foldl ff ([], [], [], []) objs
-    ff (a, b, c, d) o = case o of
-             ObjVertex _ _ -> (a ++ [o], b, c, d)
-             ObjNormal _ -> (a, b ++ [o], c, d)
-             ObjFace _ -> (a, b, c ++ [o], d)
-             ObjComment _ -> (a, b, c, d ++ [o])
-
--- | print readed objfile data.
-printDetail :: ObjFileInfo -> IO ()
-printDetail (ObjFileInfo vs vns fs) = 
-  do
-    putStrLn $ "vertecies " ++ (show $ length vs)
-    putStrLn $ "normals " ++ (show $ length vns)
-    putStrLn $ "faces " ++ (show $ length fs)
+{-| pasers for OBJ file.
+ -}
 
 -- | parse OBJ file format string, very cheaper implement.
 parseOBJ :: String -> Either ParseError [ObjFileContent]
@@ -68,24 +49,21 @@ objFile = sepBy line (char '\n')
 line :: Parser ObjFileContent
 line =
   do
-    try $ string "v "
-    v <- vertex
-    return v
-  <|> do
-    try $ string "vn "
-    vn <- vertexNormal
-    return vn
-  <|> do
-    string "f "
-    f <- face
-    return f
-  <|> do
-    string "#"
-    c <- comment
-    return c
-  <|> do -- skip blank line.
-    skipMany (noneOf ['\n'])
-    return $ ObjComment "\n"
+    lf <- lineFront
+    case lf of
+      "vn" -> do char ' '; vn <- vertexNormal; return vn
+      "v" -> do char ' '; v <- vertex; return v
+      "f" -> do char ' '; f <- face; return f
+      "#" -> do c <- comment; return c
+      otherwise -> do sk <- many (noneOf ['\n']); return $ (ObjComment sk)
+  <|> do skipMany (noneOf ['\n']); return $ ObjComment "\n"
+
+-- | 
+lineFront :: Parser String
+lineFront =
+  do try (many1 letter)
+  <|> do try (char '#'); return "#"
+  <|> do try eof; return ""
 
 -- | parse vertex location and color.
 vertex :: Parser ObjFileContent
@@ -95,9 +73,10 @@ vertex =
     v1 <- vector3
     sp <- many (char ' ')
     color <- many vector3
+    skipMany (noneOf ['\n'])
     if null color
-    then return $ ObjVertex v1 (head color)
-    else return $ ObjVertex v1 (Vector3 1.0 1.0 1.0)
+    then return $ ObjVertex v1 (Vector3 1.0 1.0 1.0)
+    else return $ ObjVertex v1 (head color)
   <?> "vertex"
 
 -- | parse vertex normal.
@@ -106,6 +85,7 @@ vertexNormal =
   do
     -- string "vn " already parsed in line parser.
     v <- vector3
+    skipMany (noneOf ['\n'])
     return $ ObjNormal v
   <?> "vertexNormal"
 
@@ -115,6 +95,7 @@ face =
   do
     -- string "f " already parsed in line parser.
     fs <- sepBy faceVertex (char ' ')
+    skipMany (noneOf ['\n'])
     return $ ObjFace fs
 
 -- | parse face vertex indecies and convert index origin.
@@ -183,13 +164,35 @@ number =
     return $ read n
   <?> "number error"
 
+-- |
+contentsToInfo :: [ObjFileContent] -> ObjFileInfo
+contentsToInfo objs = ObjFileInfo { positions = reverse vs
+                                  , normals = reverse vns
+                                  , faces = reverse fs
+                                  }
+  where
+    (vs, vns, fs) = foldl ff ([], [], []) objs
+    ff (a, b, c) o = case o of
+             ObjVertex _ _ -> ([o] ++ a, b, c)
+             ObjNormal _ -> (a, [o] ++ b, c)
+             ObjFace _ -> (a, b, [o] ++ c)
+             ObjComment _ -> (a, b, c)
+
+-- | print readed objfile data.
+printDetail :: ObjFileInfo -> IO ()
+printDetail (ObjFileInfo vs vns fs) = 
+  do
+    putStrLn $ "vertecies " ++ (show $ length vs)
+    putStrLn $ "normals " ++ (show $ length vns)
+    putStrLn $ "faces " ++ (show $ length fs)
+
 {-| for test codes.
  -}
 testLoadObj =
   do
-    objtxt <- readFile "../resource/bunny-res4.obj"
+    -- objtxt <- readFile "../resource/bunny.obj"
     -- objtxt <- readFile "../resource/cube.obj"
+    objtxt <- readFile "../resource/bunny-res4.obj"
     case parseOBJ objtxt of
       Right obj -> printDetail $ contentsToInfo obj
       Left reason -> putStrLn $ show reason
-

@@ -23,17 +23,38 @@ instance Arbitrary Vector3 where
       return v
 
 prop_vector3_dot_size v = sqrt (v `dot` v) == size v
-prop_vector3_normal_size v = size n <= 1.0
+prop_vector3_normal_size v = abs ((size n) - 1.0) <= 0.001
   where
     n = case safeNormal v of
           Just nrm -> nrm
           Nothing -> (Vector3 0 0 0)
-          
+
 prop_vector3_divByScalar v@(Vector3 x y z) s = v `divByScalar` s == (Vector3 (x/s) (y/s) (z/s))
 prop_vector3_mulByScalar v@(Vector3 x y z) s = v `mulByScalar` s == (Vector3 (x*s) (y*s) (z*s))
 
--- prop_render_image = renderImage (1, 1) Scene { objects = 
---                                              , lights  = 
---                                              , camera = Camera 
---                                              , backgroundColor = Color 0 0 0}
+--
+once_prop_vector3_cross = (Vector3 0 1 0) == (Vector3 0 0 1) `cross` (Vector3 1 0 0)
+                  && (Vector3 0 0 1) == (Vector3 1 0 0) `cross` (Vector3 0 1 0)
+
+--
+once_prop_intersectLinePlane = Just (Vector3 0 0 0) == intersectionLinePlane testLine
+                         (Plane (Vector3 0.0 0.0 (-1)) 0.0)
+                         && Nothing == intersectionLinePlane testLine
+                         (Plane (Vector3 0 0 (-1)) 1)
+                         && Nothing == intersectionLinePlane testLine
+                         (Plane (Vector3 0 0 (-1)) 1)
+                         && Just (Vector3 0 0 5) == intersectionLinePlane testLine
+                         (Plane (Vector3 0 0 1) 5)
+                         && Nothing == intersectionLinePlane testLine
+                         (Plane (Vector3 0 0 1) 11)
+  where
+    testLine = Line (Vector3 0.0 0.0 0.0) (Vector3 0.0 0.0 10.0)
+
+--
+once_prop_intersectionLineTriangle =
+  Just ((Vector3 0 0.1 0), (Vector3 0 0 (-1))) == intersectionLineTriangle (Line (Vector3 0.0 0.1 0.0) (Vector3 0.0 0.1 10.0))
+                                                (triangleFromPoints (Vector3 (-1) 0 0) (Vector3 0 1 0) (Vector3 1 0 0))
+  && 
+  Nothing == intersectionLineTriangle (Line (Vector3 0.0 0.0 0.0) (Vector3 0.0 0.0 10.0))
+                                      (triangleFromPoints (Vector3 (-1) 0 (-0.1)) (Vector3 0 1 (-0.1)) (Vector3 1 0 (-0.1)))
 

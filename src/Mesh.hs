@@ -47,17 +47,15 @@ meshFromOBJFileContents objinfo = Mesh vs tris
              (zip (positions objinfo) (normals objinfo))
     tris = foldl facesToTri [] $ faces objinfo
     facesToTri :: [Triangle] -> ObjFileContent -> [Triangle]
-    facesToTri acc (ObjFace (a:b:c:[])) = acc ++ [Triangle (vertexIdxToVertex a) (vertexIdxToVertex c) (vertexIdxToVertex b)]
-    facesToTri acc (ObjFace (a:b:c:d:[])) = acc ++ [ Triangle (vertexIdxToVertex a) (vertexIdxToVertex c) (vertexIdxToVertex b)
-                                                , Triangle (vertexIdxToVertex c) (vertexIdxToVertex d) (vertexIdxToVertex a)]
-    -- facesToTri acc (ObjFace (a:b:c:d:[])) = acc ++ [ Triangle (vertexIdxToVertex a) (vertexIdxToVertex b) (vertexIdxToVertex c)
-    --                                             , Triangle (vertexIdxToVertex c) (vertexIdxToVertex d) (vertexIdxToVertex a)]
-
+    facesToTri acc (ObjFace (a:b:c:[])) = acc ++ [triangleFromPoints (vertexIdxToVertex a) (vertexIdxToVertex c) (vertexIdxToVertex b)]
+    facesToTri acc (ObjFace (a:b:c:d:[])) = acc ++ [ triangleFromPoints (vertexIdxToVertex a) (vertexIdxToVertex c) (vertexIdxToVertex b)
+                                                , triangleFromPoints (vertexIdxToVertex c) (vertexIdxToVertex d) (vertexIdxToVertex a)]
+    
     vertexIdxToVertex :: FaceVertex -> M.Vector3
     vertexIdxToVertex (FaceVertex v vt vn) = objv v
-    -- faceVertexIdxToVertex (v, vt, vn) = (Vertex (objv v) (objvn vn))
     objv i = let ObjVertex (O.Vector3 x y z) _ = (positions objinfo) !! i
-             in M.Vector3 x y z
+             in M.Vector3 (x*5) (y*5) (z*5)
+             -- in M.Vector3 x y z
     objvn i = let ObjNormal n = (normals objinfo) !! i
              in n
 

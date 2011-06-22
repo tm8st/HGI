@@ -1,18 +1,42 @@
 -- author: tm8st (tm8st@hotmail.co.jp)
 -- math function and types.
 
-{-# LANGUAGE BangPatterns #-}
-
 module Math where
 
+import Debug.Trace (trace, traceShow)
 import Data.Word (Word8)
+
+data Vector4 = Vector4 Double Double Double Double
+               deriving (Eq, Show)
+
+-- | simple 4x4 matrix.
+data Matrix = Matrix [Vector3]
+            deriving (Eq, Show)
+
+matrixAxis :: Matrix -> Int -> Vector4
+matrixAxis m i = undefined
+
+matrixTransform :: Matrix -> Vector3 -> Vector4
+matrixTransform m v = undefined
+
+-- define Num functions.
+instance Num Matrix where
+  (+) (Matrix l) (Matrix r) = Matrix $ zipWith (+) l r
+  (-) (Matrix l) (Matrix r) = Matrix $ zipWith (-) l r
+  (*) l r = undefined
+  negate (Matrix m) = Matrix $ map negate m
+  abs (Matrix m) = Matrix $ map abs m
+  signum (Matrix m) = undefined
+  fromInteger i = undefined
 
 -- | simple 3D vector.
 data Vector3 = Vector3 { vX :: Double
                        , vY :: Double
-                       , vZ :: Double }
+                       , vZ :: Double
+                       }
                deriving(Eq, Show)
 
+-- define Num functions.
 instance Num Vector3 where
   (+) (Vector3 lx ly lz) (Vector3 rx ry rz) = Vector3 (lx + rx) (ly + ry) (lz + rz)
   (-) (Vector3 lx ly lz) (Vector3 rx ry rz) = Vector3 (lx - rx) (ly - ry) (lz - rz)
@@ -38,10 +62,9 @@ scalarTriple :: Vector3 -> Vector3 -> Vector3 -> Double
 scalarTriple u v w = (cross u v) `dot` w
 
 divByScalar :: Vector3 -> Double -> Vector3
+(Vector3 x y z) `divByScalar` s = Vector3 (x / s) (y / s) (z / s)
 -- v `divByScalar` s = v `mulByScalar` invS
 --   where invS = 1.0 / s
-(Vector3 x y z) `divByScalar` s = Vector3 (x / s) (y / s) (z / s)
-
 
 mulByScalar :: Vector3 -> Double -> Vector3
 (Vector3 x y z) `mulByScalar` s = Vector3 (x * s) (y * s) (z * s)
@@ -55,24 +78,13 @@ safeNormal v = let len = size v
                then Just $ v `divByScalar` len
                else Nothing
 
--- | Ray, use for intersection.
-data Ray = Ray { rayStart :: Vector3
-               , rayDirection :: Vector3
-               }
-           deriving(Eq, Show)
-
--- | Sphere, use for intersection.
-data Sphere = Sphere { sphereCenter :: Vector3
-                     , sphereRadius :: Double
-                     }
-              deriving(Eq, Show)
-
 -- | Color.
 data Color = Color { cR :: Double
                    , cG :: Double
                    , cB :: Double }
              deriving(Eq, Show)
 
+-- define Num functions.
 instance Num Color where
   (+) (Color lx ly lz) (Color rx ry rz) = Color (lx + rx) (ly + ry) (lz + rz)
   (-) (Color lx ly lz) (Color rx ry rz) = Color (lx - rx) (ly - ry) (lz - rz)
@@ -83,6 +95,7 @@ instance Num Color where
   fromInteger l = Color d d d
    where d = fromInteger l 
 
+-- @TODO Vector3と共通化 class? newtype?
 cdot :: Color -> Color -> Double
 (Color lx ly lz) `cdot` (Color rx ry rz) = lx * rx + ly * ry + lz * rz
 
@@ -95,12 +108,25 @@ cmulByScalar :: Color -> Double -> Color
 fromVector3 :: Vector3 -> Color
 fromVector3 (Vector3 x y z) = Color x y z
 
+-- | convert color to Word8
 colorToWord8s :: Color -> [Word8]
 colorToWord8s c = (map doubleColorValueToWord8 [cR c, cG c, cB c, 1.0])
   where
     doubleColorValueToWord8 v = max 0 $ min 255 (truncate (v * 255))
 
--- Plane
+-- | Ray, use for intersection.
+data Ray = Ray { rayStart :: Vector3
+               , rayDirection :: Vector3
+               }
+           deriving(Eq, Show)
+
+-- | Sphere, use for intersection.
+data Sphere = Sphere { sphereCenter :: Vector3
+                     , sphereRadius :: Double
+                     }
+              deriving(Eq, Show)
+
+-- | Plane
 data Plane = Plane { planeNormal :: Vector3
                    , planeW :: Double
                    }
@@ -108,30 +134,31 @@ data Plane = Plane { planeNormal :: Vector3
 
 planeFromNormalDistance n d = Plane n d
 
--- Triangle
-data Triangle = Triangle Vector3 Vector3 Vector3
+-- | Triangle v0 v1 v2 n
+data Triangle = Triangle { triVertex0 :: Vector3
+                         , triVertex1 :: Vector3
+                         , triVertex2 :: Vector3
+                         , triNormal :: Vector3
+                         }
                 deriving(Eq, Show)
 
+triangleFromPoints :: Vector3 -> Vector3 -> Vector3 -> Triangle
+triangleFromPoints a b c = Triangle a b c n
+  where
+    ab = b - a
+    ac = c - a
+    n = normal $ cross ab ac
+
+-- | calc triangle barycentric position.
 barycentricPosition :: Triangle -> (Double, Double, Double) -> Vector3
-barycentricPosition (Triangle v0 v1 v2) (u, v, w) =
+barycentricPosition (Triangle v0 v1 v2 n) (u, v, w) =
   v0 `mulByScalar` u + v1 `mulByScalar` v + v2 `mulByScalar` w
 
-triangleNormal :: Triangle -> Vector3
-triangleNormal (Triangle u v w) =
-  let uv = v - u
-      uw = w - u
-  in normal $ cross uv uw
-
+-- | Line
 data Line = Line Vector3 Vector3
-          deriving(Eq, Show)
+            deriving(Eq, Show)
 
-testRay = Ray (Vector3 0.0 0.0 0.0) (Vector3 0.0 0.0 (1.0))
-testLine = Line (Vector3 0.0 0.0 0.0) (Vector3 0.0 0.0 5.0)
-testPlane = Plane (Vector3 0.0 0.0 (1.0)) (3.0)
-testTriangle = Triangle (Vector3 0.0 1.0 3.0)
-                        (Vector3 (-1.0) (-1.0) 3.0)
-                        (Vector3 1.0 0.0 3.0)
-
+-- | intersection Line vs Plane, return HitLocation.
 intersectionLinePlane :: Line -> Plane -> Maybe Vector3
 intersectionLinePlane (Line s e) (Plane pn pd) = 
   let d = e - s
@@ -140,20 +167,24 @@ intersectionLinePlane (Line s e) (Plane pn pd) =
      then Just $ s + d `mulByScalar` t
      else Nothing
 
+-- | intersection Line vs Triangle, return (HitLocation, HitNormal).
 intersectionLineTriangle :: Line -> Triangle -> Maybe (Vector3, Vector3)
-intersectionLineTriangle (Line p q) tri@(Triangle a b c) = 
-  let pq = q - p
-      pa = a - p
-      pb = b - p
-      pc = c - p
-      u = scalarTriple pq pc pb
-      v = scalarTriple pq pa pc
-      w = scalarTriple pq pb pa
-  in if (abs u >= epsilon)
-     && (abs v >= epsilon)
-     && (abs w >= epsilon)
-     then let t = 1.0 / (u + v + w)
-          in Just (barycentricPosition tri (u*t, v*t, w*t), normal $ triangleNormal tri)
-     else Nothing
+intersectionLineTriangle (Line p q) tri@(Triangle a b c n) =
+  ret
+  -- trace ("" ++ (show u) ++ ", " ++ (show v) ++ ", " ++ show w) ret
   where
-    epsilon = 0.00001
+    epsilon = 0.0000000000001
+    pq = q - p
+    pa = a - p
+    pb = b - p
+    pc = c - p
+    u = scalarTriple pq pc pb
+    v = scalarTriple pq pa pc
+    w = scalarTriple pq pb pa
+    ret = if (dot n $ normal pq) <= 0.000
+          && (u >= epsilon)
+          && (v >= epsilon)
+          && (w >= epsilon)
+          then let t = 1.0 / (u + v + w)
+               in Just (barycentricPosition tri (u*t, v*t, w*t), n)
+          else Nothing

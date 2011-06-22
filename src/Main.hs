@@ -1,6 +1,8 @@
 -- author: tm8st (tm8st@hotmail.co.jp)
 -- Global illumination renderer implement in haskell.
 
+{-# LANGUAGE BangPatterns #-}
+
 module Main where
 
 import HGI
@@ -25,7 +27,7 @@ defaultHeight = 640
 -- defaultHeight = 32
 
 testMaterial = Material { mtDiffuseColor = (Vector3 0.7 0.8 1), mtSpecularPower = 8.0 }
-testCamera = Camera { camLocation = (Vector3 0 0 (-50.0)) }
+testCamera = Camera { camLocation = (Vector3 0 0 (-10.0)) }
 testSphere = ObjectSphere Sphere { sphereCenter =  (Vector3 0 0 5), sphereRadius = 20.0 } testMaterial
 testSphere2 = ObjectSphere Sphere { sphereCenter =  (Vector3 30 20 5), sphereRadius = 18.0 } testMaterial
 testSphere3 = ObjectSphere Sphere { sphereCenter =  (Vector3 (-30) 20 5), sphereRadius = 18.0 } testMaterial
@@ -39,7 +41,7 @@ testPointLight3 = PointLight{ plRadius = 64, plLocation = (Vector3 0 60 (-10)), 
 
 -- testScene = Scene { objects = [testSphere, testSphere2, testSphere3
 --                               , testSphere4, testSphere5, testSphere6, testSphere7
---                               , ]
+--                               ]
 --               , lights = [testPointLight, testPointLight2, testPointLight3]
 --               , camera = testCamera
 --               , backgroundColor = Color 0 0 0.5
@@ -51,10 +53,10 @@ colorsToWordsList = concat . map colorToWord8s
 -- | run raytracing.
 main :: IO ()
 main = do
-  -- objtxt <- readFile "../resource/cube.obj"
-  objtxt <- readFile "../resource/bunny-res4.obj"
+  objtxt <- readFile "../resource/cube.obj"
+  -- objtxt <- readFile "../resource/bunny-res4.obj"
   startMeshLoadTime <- getClockTime
-  let Right mesh = Mesh.objMeshFromFileContent objtxt
+  let (Right !mesh) = Mesh.objMeshFromFileContent objtxt
   endMeshLoadTime <- getClockTime
   print $ timeDiffToString $ diffClockTimes endMeshLoadTime startMeshLoadTime
   putStrLn "mesh loaded."
@@ -63,15 +65,15 @@ main = do
               then (defaultWidth, defaultHeight)
               else (read (head args) :: Int,
                     read (head (tail args)) :: Int)
-      testScene = Scene { objects = [
-                           testSphere
-                           -- ObjectMesh mesh testMaterial
-                          ]
-              , lights = [testPointLight, testPointLight2, testPointLight3]
-              , camera = testCamera
-              , backgroundColor = Color 0.0 0.5 0.0
-              }
-  putStrLn $ "RayTrace width = " ++ show w ++ ", height = " ++ show h
+      testScene = Scene { objects = [ObjectMesh mesh testMaterial
+                                    -- , testSphere2, testSphere3
+                                    -- , testSphere4, testSphere5, testSphere6, testSphere7
+                                    ]
+                        , lights = [testPointLight, testPointLight2, testPointLight3]
+                        , camera = testCamera
+                        , backgroundColor = Color 0 0 0.5
+                        }
+  -- putStrLn $ "RayTrace width = " ++ show w ++ ", height = " ++ show h
   startRenderImageTime <- getClockTime
   BMP.writeBMP "result.bmp"
     $ BMP.packRGBA32ToBMP w h

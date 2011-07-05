@@ -49,8 +49,8 @@ objFile = sepBy line (char '\n')
 line :: Parser ObjFileContent
 line =
   do
-    lf <- lineFront
-    case lf of
+    prefix <- linePrefix
+    case prefix of
       "vn" -> do char ' '; vn <- vertexNormal; return vn
       "v" -> do char ' '; v <- vertex; return v
       "f" -> do char ' '; f <- face; return f
@@ -59,8 +59,8 @@ line =
   <|> do skipMany (noneOf ['\n']); return $ ObjComment "\n"
 
 -- | 
-lineFront :: Parser String
-lineFront =
+linePrefix :: Parser String
+linePrefix =
   do try (many1 letter)
   <|> do try (char '#'); return "#"
   <|> do try eof; return ""
@@ -71,7 +71,8 @@ vertex =
   do
     -- string "v " already parsed in line parser.
     v1 <- vector3
-    sp <- many (char ' ')
+    -- skipMany space
+    skipMany (char ' ' <|> char '\t')
     color <- many vector3
     skipMany (noneOf ['\n'])
     if null color

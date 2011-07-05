@@ -4,6 +4,7 @@
 module Main where
 
 import TestHGI
+import BSP
 import Test.QuickCheck
 import Test.QuickCheck.Test
 import System.Cmd
@@ -43,4 +44,7 @@ main = do
   putStr "once_prop_vector3_cross: " >> myQuickCheckOnce once_prop_vector3_cross
   putStr "once_prop_intersectLinePlane: " >> myQuickCheckOnce once_prop_intersectLinePlane
   putStr "once_prop_intersectionLineTriangle: " >> myQuickCheckOnce once_prop_intersectionLineTriangle
+  putStr "once_prop_classifyPointToPlane: " >> myQuickCheckOnce once_prop_classifyPointToPlane
+  putStr "once_prop_classifyTriangleToPlane: " >> myQuickCheckOnce once_prop_classifyTriangleToPlane
+  putStr "once_prop_splitTriangleByPlane: " >> myQuickCheckOnce once_prop_splitTriangleByPlane
   putStrLn "all test finished."

@@ -9,6 +9,9 @@ import Data.Word (Word8)
 data Vector4 = Vector4 Double Double Double Double
                deriving (Eq, Show)
 
+dotv4 :: Vector4 -> Vector4 -> Double
+(Vector4 lx ly lz lw) `dotv4` (Vector4 rx ry rz rw) = lx * rx + ly * ry + lz * rz + lw * rw
+
 -- | simple 4x4 matrix.
 data Matrix = Matrix [Vector3]
             deriving (Eq, Show)
@@ -132,6 +135,10 @@ data Plane = Plane { planeNormal :: Vector3
                    }
              deriving(Eq, Show)
 
+distancePointPlane :: Vector3 -> Plane -> Double
+distancePointPlane v (Plane pn pd) = v `dot` pn - pd
+
+planeFromNormalDistance :: Vector3 -> Double -> Plane
 planeFromNormalDistance n d = Plane n d
 
 -- | Triangle v0 v1 v2 n
@@ -141,13 +148,31 @@ data Triangle = Triangle { triVertex0 :: Vector3
                          , triNormal :: Vector3
                          }
                 deriving(Eq, Show)
+-- | 
+triVertecies :: Triangle -> [Vector3]
+triVertecies (Triangle a b c _) = [a, b, c]
 
+-- |
+triangleEdge :: Triangle -> Int -> Line
+triangleEdge t 0 = Line (triVertex2 t) (triVertex0 t)
+triangleEdge t 1 = Line (triVertex0 t) (triVertex1 t)
+triangleEdge t 2 = Line (triVertex1 t) (triVertex2 t)
+
+-- |
 triangleFromPoints :: Vector3 -> Vector3 -> Vector3 -> Triangle
 triangleFromPoints a b c = Triangle a b c n
   where
     ab = b - a
     ac = c - a
     n = normal $ cross ab ac
+
+-- |
+trianglesFromPointList :: [Vector3] -> [Triangle]
+trianglesFromPointList xs = step xs
+  where
+    step (a:b:c:[]) = [(triangleFromPoints a b c)]
+    step (a:b:c:d:[]) = [(triangleFromPoints a b c), (triangleFromPoints c d a)]
+    step [] = []
 
 -- | calc triangle barycentric position.
 barycentricPosition :: Triangle -> (Double, Double, Double) -> Vector3
